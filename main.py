@@ -9,7 +9,7 @@ import datetime
 # Authenticate with Spotify
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="e501baae52844189a871b12a3f605b2c", client_secret="9bcd7d669a4540e58a67c5312edc5158", redirect_uri="http://localhost:8000/callback", scope="playlist-read-private"))
 
-# Set initial values for pagination
+# Set initial values for pagination 
 offset = 0
 limit = 50
 
