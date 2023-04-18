@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Playlists</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      .playlist {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 10px;
+      }
+      .playlist-image {
+        margin-right: 10px;
+      }
+      .playlist-details {
+        display: flex;
+        flex-direction: column;
+      }
+      .playlist-name {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .playlist-owner {
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+      }
+      .playlist-track-count {
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+      }
+      .playlist-description {
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    {% for playlist in playlists %}
+      <div class="playlist">
+        <img class="playlist-image" src="{{ playlist.image_url }}" alt="{{ playlist.name }}">
+        <div class="playlist-details">
+          <div class="playlist-name">{{ playlist.name }}</div>
+          <div class="playlist-owner">Owner: {{ playlist.owner }}</div>
+          <div class="playlist-track-count">{{ playlist.track_count }} tracks</div>
+          <div class="playlist-description">{{ playlist.description }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </body>
+</html>
