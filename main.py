@@ -6,11 +6,8 @@ import os
 import html
 import datetime
 
-# Set up Spotify authentication
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="e501baae52844189a871b12a3f605b2c",
-                                               client_secret="9bcd7d669a4540e58a67c5312edc5158",
-                                               redirect_uri="http://localhost:8000/callback",
-                                               scope="user-library-read"))
+# Authenticate with Spotify
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="e501baae52844189a871b12a3f605b2c", client_secret="9bcd7d669a4540e58a67c5312edc5158", redirect_uri="http://localhost:8000/callback", scope="playlist-read-private"))
 
 # Set initial values for pagination
 offset = 0
@@ -23,56 +20,50 @@ try:
 except ValueError:
     days = 7
 
-# Get user's saved tracks
-tracks = []
+# Get user's playlists
+playlists = []
 while True:
-    results = sp.current_user_saved_tracks(limit=limit, offset=offset)
-    tracks.extend(results["items"])
+    results = sp.current_user_playlists(limit=limit, offset=offset)
+    playlists.extend(results["items"])
     offset += limit
     if len(results["items"]) == 0:
         break
 
-# Get the IDs of the tracks
-track_ids = [track["track"]["id"] for track in tracks if track["track"] is not None and track["track"]["id"] is not None]
+# Sort playlists by most recently updated
+playlists.sort(key=lambda playlist: playlist.get('tracks', {}).get('total', 0), reverse=True)
 
-# Get the IDs of the user's playlists
-playlist_ids = [playlist["id"] for playlist in sp.current_user_playlists()["items"]]
-
-# Get the intersection of the track IDs and playlist IDs
-playlist_track_ids = []
-for playlist_id in playlist_ids:
-    playlist_track_ids.extend([playlist_track["track"]["id"] for playlist_track in sp.playlist_items(playlist_id)["items"] if playlist_track["track"] is not None and playlist_track["track"]["id"] is not None])
-common_track_ids = set(track_ids) & set(playlist_track_ids)
-
-# Get the playlists containing the common track IDs and their last modified dates
+# Get playlist names, image URLs, and last modified dates
 playlist_data = []
-for playlist_id in playlist_ids:
-    results = sp.playlist_items(playlist_id)
-    playlist_track_ids = set([playlist_track["track"]["id"] for playlist_track in results["items"] if playlist_track["track"] is not None and playlist_track["track"]["id"] is not None])
-    common_ids = common_track_ids & playlist_track_ids
-    if len(common_ids) > 0:
-        name = html.escape(sp.playlist(playlist_id)["name"])
-        image_url = sp.playlist(playlist_id)["images"][0]["url"]
-        playlist_url = sp.playlist(playlist_id)["external_urls"]["spotify"]
-        last_modified = None
-        for item in results['items']:
-            if item['track']['id'] in common_ids:
-                track_created_at = datetime.datetime.fromisoformat(item['added_at'][:-1])
-                if last_modified is None or track_created_at > last_modified:
-                    last_modified = track_created_at
-        if last_modified is None:
-            last_modified = sp.playlist(playlist_id).get('last_modified')
-            if last_modified is not None:
-                try:
-                    last_modified = datetime.datetime.fromisoformat(last_modified.split(":")[1][:-1])
-                except IndexError:
-                    print(f"Error: Could not parse last modified date for playlist '{name}'")
-                    continue
-            else:
+for playlist in playlists:
+    name = html.escape(playlist['name'])
+    image_url = playlist['images'][0]['url']
+    playlist_url = playlist['external_urls']['spotify']
+    last_modified = None
+    results = sp.playlist_items(playlist['id'], fields="items(added_at, track(name, album(release_date)))")
+    print(f"Playlist: {name}")
+    latest_track_created_at = None
+    for item in results['items']:
+        track_created_at = datetime.datetime.fromisoformat(item['added_at'][:-1])
+        if latest_track_created_at is None or track_created_at > latest_track_created_at:
+            latest_track_created_at = track_created_at
+    if latest_track_created_at is None:
+        last_modified = playlist.get('last_modified')
+        if last_modified is not None:
+            try:
+                last_modified = datetime.datetime.fromisoformat(last_modified.split(":")[1][:-1])
+            except IndexError:
+                print(f"Error: Could not parse last modified date for playlist '{name}'")
                 continue
-        playlist_data.append((name, image_url, playlist_url, last_modified.strftime("%Y-%m-%d %H:%M:%S")))
+        else:
+            continue
+    else:
+        last_modified = latest_track_created_at
+    time_since_modified = datetime.datetime.now() - last_modified
+    if time_since_modified > datetime.timedelta(days=days):
+        continue
+    playlist_data.append((name, image_url, playlist_url, last_modified.strftime("%Y-%m-%d %H:%M:%S")))
 
-print(f"Retrieved {len(playlist_ids)} playlists.")
+print(f"Retrieved {len(playlists)} playlists.")
 print(f"Found {len(playlist_data)} playlists modified in the last {days} days.")
 
 # Create a simple HTTP server to display the playlist names, images, and last modified dates
